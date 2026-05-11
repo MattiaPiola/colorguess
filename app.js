@@ -248,13 +248,17 @@
 
   function buildSliderGradient(model, key, values) {
     if (model === "rgb") {
-      const { r, g, b } = values;
+      const r = Math.round(values.r);
+      const g = Math.round(values.g);
+      const b = Math.round(values.b);
       if (key === "r") return `linear-gradient(to right, rgb(0,${g},${b}), rgb(255,${g},${b}))`;
       if (key === "g") return `linear-gradient(to right, rgb(${r},0,${b}), rgb(${r},255,${b}))`;
       return `linear-gradient(to right, rgb(${r},${g},0), rgb(${r},${g},255))`;
     }
     if (model === "hsl") {
-      const { h, s, l } = values;
+      const h = Math.round(values.h);
+      const s = Math.round(values.s);
+      const l = Math.round(values.l);
       if (key === "h") {
         const stops = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360]
           .map((deg) => `hsl(${deg},${s}%,${l}%)`)
@@ -270,7 +274,7 @@
       if (key === "y") return "linear-gradient(to right, white, yellow)";
       return "linear-gradient(to right, white, black)";
     }
-    return "rgba(255,255,255,0.1)";
+    return "linear-gradient(to right, rgba(255,255,255,0.05), rgba(255,255,255,0.15))";
   }
 
   function getGroupModelValues(groupEl, index) {
