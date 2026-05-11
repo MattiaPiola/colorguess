@@ -376,10 +376,6 @@
     });
   }
 
-  function renderHarmonyTargets() {
-    dom.harmonyTargets.innerHTML = "";
-  }
-
   function updateVisibilitySettings() {
     const isGuess = state.mode === "guess";
     dom.harmonyTypeLabel.classList.toggle("hidden", isGuess);
@@ -412,7 +408,7 @@
 
     modes[state.mode].startRound();
     dom.targetSwatch.style.background = ColorMath.rgbToCss(state.target);
-    renderHarmonyTargets();
+    dom.harmonyTargets.innerHTML = "";
     renderInputs();
     updateVisibilitySettings();
     setTargetVisibility();
