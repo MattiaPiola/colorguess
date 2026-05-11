@@ -16,4 +16,4 @@ Both modes provide distance-based feedback and score.
 
 ## Run
 
-Open `/home/runner/work/colorguess/colorguess/index.html` in a browser.
+Open `index.html` from the project root in a browser.
