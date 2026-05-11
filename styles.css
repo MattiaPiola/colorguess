@@ -1,0 +1,130 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #111;
+  color: #f0f0f0;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.panel {
+  background: #1e1e1e;
+  border: 1px solid #2d2d2d;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #181818;
+  color: #f0f0f0;
+}
+
+button {
+  cursor: pointer;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.target-wrap {
+  position: relative;
+  height: 130px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #444;
+}
+
+.target-swatch {
+  height: 100%;
+}
+
+.target-label {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.target-wrap.hidden-target .target-swatch {
+  filter: brightness(0);
+}
+
+.harmony-targets {
+  display: grid;
+  margin-top: 10px;
+  gap: 8px;
+}
+
+.harmony-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.harmony-chip {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #555;
+}
+
+.guess-form {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.inputs-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+}
+
+.feedback {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  background: #151515;
+  border: 1px solid #2f2f2f;
+}
+
+.hidden {
+  display: none;
+}

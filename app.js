@@ -1,0 +1,411 @@
+(() => {
+  const MAX_RGB_DISTANCE = Math.sqrt(3 * 255 * 255);
+
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  const ColorMath = {
+    randomRgb() {
+      return {
+        r: Math.floor(Math.random() * 256),
+        g: Math.floor(Math.random() * 256),
+        b: Math.floor(Math.random() * 256),
+      };
+    },
+
+    rgbToCss({ r, g, b }) {
+      return `rgb(${r}, ${g}, ${b})`;
+    },
+
+    rgbDistance(a, b) {
+      const dr = a.r - b.r;
+      const dg = a.g - b.g;
+      const db = a.b - b.b;
+      return Math.sqrt(dr * dr + dg * dg + db * db);
+    },
+
+    scoreFromDistance(distance) {
+      return Math.round(((MAX_RGB_DISTANCE - distance) / MAX_RGB_DISTANCE) * 100);
+    },
+
+    rgbToHsl({ r, g, b }) {
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const max = Math.max(rn, gn, bn);
+      const min = Math.min(rn, gn, bn);
+      const delta = max - min;
+
+      let h = 0;
+      if (delta !== 0) {
+        if (max === rn) h = ((gn - bn) / delta) % 6;
+        else if (max === gn) h = (bn - rn) / delta + 2;
+        else h = (rn - gn) / delta + 4;
+      }
+
+      h = Math.round((h * 60 + 360) % 360);
+      const l = (max + min) / 2;
+      const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+
+      return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
+    },
+
+    hslToRgb({ h, s, l }) {
+      const sn = clamp(s, 0, 100) / 100;
+      const ln = clamp(l, 0, 100) / 100;
+      const c = (1 - Math.abs(2 * ln - 1)) * sn;
+      const hp = ((h % 360) + 360) % 360 / 60;
+      const x = c * (1 - Math.abs((hp % 2) - 1));
+
+      let r1 = 0;
+      let g1 = 0;
+      let b1 = 0;
+
+      if (hp < 1) [r1, g1, b1] = [c, x, 0];
+      else if (hp < 2) [r1, g1, b1] = [x, c, 0];
+      else if (hp < 3) [r1, g1, b1] = [0, c, x];
+      else if (hp < 4) [r1, g1, b1] = [0, x, c];
+      else if (hp < 5) [r1, g1, b1] = [x, 0, c];
+      else [r1, g1, b1] = [c, 0, x];
+
+      const m = ln - c / 2;
+      return {
+        r: Math.round((r1 + m) * 255),
+        g: Math.round((g1 + m) * 255),
+        b: Math.round((b1 + m) * 255),
+      };
+    },
+
+    rgbToCmyk({ r, g, b }) {
+      const rn = r / 255;
+      const gn = g / 255;
+      const bn = b / 255;
+      const k = 1 - Math.max(rn, gn, bn);
+      if (k === 1) return { c: 0, m: 0, y: 0, k: 100 };
+      const c = (1 - rn - k) / (1 - k);
+      const m = (1 - gn - k) / (1 - k);
+      const y = (1 - bn - k) / (1 - k);
+      return {
+        c: Math.round(c * 100),
+        m: Math.round(m * 100),
+        y: Math.round(y * 100),
+        k: Math.round(k * 100),
+      };
+    },
+
+    cmykToRgb({ c, m, y, k }) {
+      const cn = clamp(c, 0, 100) / 100;
+      const mn = clamp(m, 0, 100) / 100;
+      const yn = clamp(y, 0, 100) / 100;
+      const kn = clamp(k, 0, 100) / 100;
+      return {
+        r: Math.round(255 * (1 - cn) * (1 - kn)),
+        g: Math.round(255 * (1 - mn) * (1 - kn)),
+        b: Math.round(255 * (1 - yn) * (1 - kn)),
+      };
+    },
+
+    harmonyTargets(baseRgb, type) {
+      const baseHsl = this.rgbToHsl(baseRgb);
+      const shifts = {
+        analogous: [330, 30],
+        complementary: [180],
+        "split-complementary": [150, 210],
+        triad: [120, 240],
+        "bad-harmony": [90, 270],
+      }[type] || [180];
+
+      return shifts.map((shift, index) => {
+        const targetHsl = {
+          h: (baseHsl.h + shift) % 360,
+          s: type === "bad-harmony" ? (index % 2 === 0 ? 100 : 20) : baseHsl.s,
+          l: type === "bad-harmony" ? (index % 2 === 0 ? 20 : 80) : baseHsl.l,
+        };
+        return this.hslToRgb(targetHsl);
+      });
+    },
+  };
+
+  class BaseMode {
+    constructor(state) {
+      this.state = state;
+    }
+
+    startRound() {
+      throw new Error("Not implemented");
+    }
+
+    evaluate() {
+      throw new Error("Not implemented");
+    }
+  }
+
+  class GuessMode extends BaseMode {
+    startRound() {
+      this.state.target = ColorMath.randomRgb();
+      this.state.harmony = [];
+      return this.state.target;
+    }
+
+    evaluate(playerColors) {
+      const player = playerColors[0];
+      const distance = ColorMath.rgbDistance(this.state.target, player);
+      const score = ColorMath.scoreFromDistance(distance);
+      return {
+        distance: [distance],
+        score,
+        message: `Distance: ${distance.toFixed(2)} | Score: ${score}/100`,
+      };
+    }
+  }
+
+  class HarmonyMode extends BaseMode {
+    startRound() {
+      this.state.target = ColorMath.randomRgb();
+      this.state.harmony = ColorMath.harmonyTargets(this.state.target, this.state.harmonyType);
+      return this.state.target;
+    }
+
+    evaluate(playerColors) {
+      const distances = this.state.harmony.map((target, idx) => ColorMath.rgbDistance(target, playerColors[idx]));
+      const avgDistance = distances.reduce((a, b) => a + b, 0) / distances.length;
+      const score = ColorMath.scoreFromDistance(avgDistance);
+      return {
+        distance: distances,
+        score,
+        message: `Average harmony distance: ${avgDistance.toFixed(2)} | Score: ${score}/100`,
+      };
+    }
+  }
+
+  const modelDefs = {
+    rgb: [
+      { key: "r", min: 0, max: 255, step: 1, label: "R" },
+      { key: "g", min: 0, max: 255, step: 1, label: "G" },
+      { key: "b", min: 0, max: 255, step: 1, label: "B" },
+    ],
+    hsl: [
+      { key: "h", min: 0, max: 360, step: 1, label: "H" },
+      { key: "s", min: 0, max: 100, step: 1, label: "S" },
+      { key: "l", min: 0, max: 100, step: 1, label: "L" },
+    ],
+    cmyk: [
+      { key: "c", min: 0, max: 100, step: 1, label: "C" },
+      { key: "m", min: 0, max: 100, step: 1, label: "M" },
+      { key: "y", min: 0, max: 100, step: 1, label: "Y" },
+      { key: "k", min: 0, max: 100, step: 1, label: "K" },
+    ],
+  };
+
+  const dom = {
+    mode: document.getElementById("mode"),
+    model: document.getElementById("model"),
+    infiniteRounds: document.getElementById("infiniteRounds"),
+    rounds: document.getElementById("rounds"),
+    alwaysVisible: document.getElementById("alwaysVisible"),
+    hideSeconds: document.getElementById("hideSeconds"),
+    harmonyType: document.getElementById("harmonyType"),
+    harmonyTypeLabel: document.getElementById("harmonyTypeLabel"),
+    visibilityLabel: document.getElementById("visibilityLabel"),
+    hideSecondsLabel: document.getElementById("hideSecondsLabel"),
+    targetWrap: document.getElementById("targetWrap"),
+    targetSwatch: document.getElementById("targetSwatch"),
+    harmonyTargets: document.getElementById("harmonyTargets"),
+    inputs: document.getElementById("inputs"),
+    feedback: document.getElementById("feedback"),
+    form: document.getElementById("guessForm"),
+    roundStatus: document.getElementById("roundStatus"),
+    nextRound: document.getElementById("nextRound"),
+  };
+
+  const state = {
+    mode: "guess",
+    model: "rgb",
+    target: ColorMath.randomRgb(),
+    harmonyType: "analogous",
+    harmony: [],
+    currentRound: 1,
+    roundsPlayed: 0,
+    hideTimer: null,
+  };
+
+  const modes = {
+    guess: new GuessMode(state),
+    harmony: new HarmonyMode(state),
+  };
+
+  function convertInputToRgb(model, values) {
+    if (model === "rgb") return values;
+    if (model === "hsl") return ColorMath.hslToRgb(values);
+    return ColorMath.cmykToRgb(values);
+  }
+
+  function rgbToModel(model, rgb) {
+    if (model === "rgb") return rgb;
+    if (model === "hsl") return ColorMath.rgbToHsl(rgb);
+    return ColorMath.rgbToCmyk(rgb);
+  }
+
+  function buildInputGroup(index, defaults) {
+    const fields = modelDefs[state.model];
+    const group = document.createElement("div");
+    group.className = "inputs-grid";
+
+    fields.forEach((field) => {
+      const label = document.createElement("label");
+      label.textContent = state.mode === "harmony" ? `Color ${index + 1} • ${field.label}` : field.label;
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = String(field.min);
+      input.max = String(field.max);
+      input.step = String(field.step);
+      input.name = `color-${index}-${field.key}`;
+      input.required = true;
+      input.value = String(clamp(defaults[field.key] ?? field.min, field.min, field.max));
+      label.appendChild(input);
+      group.appendChild(label);
+    });
+
+    return group;
+  }
+
+  function renderInputs() {
+    dom.inputs.innerHTML = "";
+
+    if (state.mode === "guess") {
+      dom.inputs.appendChild(buildInputGroup(0, rgbToModel(state.model, state.target)));
+      return;
+    }
+
+    state.harmony.forEach((harmonyRgb, idx) => {
+      dom.inputs.appendChild(buildInputGroup(idx, rgbToModel(state.model, harmonyRgb)));
+    });
+  }
+
+  function renderHarmonyTargets() {
+    dom.harmonyTargets.innerHTML = "";
+    if (state.mode !== "harmony") return;
+
+    state.harmony.forEach((rgb, idx) => {
+      const row = document.createElement("div");
+      row.className = "harmony-item";
+      const chip = document.createElement("span");
+      chip.className = "harmony-chip";
+      chip.style.background = ColorMath.rgbToCss(rgb);
+      const txt = document.createElement("span");
+      txt.textContent = `Target harmony ${idx + 1}`;
+      row.appendChild(chip);
+      row.appendChild(txt);
+      dom.harmonyTargets.appendChild(row);
+    });
+  }
+
+  function updateVisibilitySettings() {
+    const isGuess = state.mode === "guess";
+    dom.visibilityLabel.classList.toggle("hidden", !isGuess);
+    dom.hideSecondsLabel.classList.toggle("hidden", !isGuess || dom.alwaysVisible.checked);
+  }
+
+  function setTargetVisibility() {
+    clearTimeout(state.hideTimer);
+    dom.targetWrap.classList.remove("hidden-target");
+
+    if (state.mode !== "guess" || dom.alwaysVisible.checked) return;
+
+    const seconds = clamp(Number(dom.hideSeconds.value) || 3, 1, 15);
+    state.hideTimer = setTimeout(() => {
+      dom.targetWrap.classList.add("hidden-target");
+    }, seconds * 1000);
+  }
+
+  function startRound(resetCount = false) {
+    if (resetCount) {
+      state.currentRound = 1;
+      state.roundsPlayed = 0;
+    }
+
+    state.mode = dom.mode.value;
+    state.model = dom.model.value;
+    state.harmonyType = dom.harmonyType.value;
+
+    modes[state.mode].startRound();
+    dom.targetSwatch.style.background = ColorMath.rgbToCss(state.target);
+    renderHarmonyTargets();
+    renderInputs();
+    updateVisibilitySettings();
+    setTargetVisibility();
+    dom.feedback.textContent = "Pick values and submit to get feedback.";
+    dom.roundStatus.textContent = `Round ${state.currentRound}`;
+  }
+
+  function parseInputs() {
+    const fields = modelDefs[state.model];
+    const rounds = state.mode === "harmony" ? state.harmony.length : 1;
+    const all = [];
+
+    for (let i = 0; i < rounds; i += 1) {
+      const values = {};
+      fields.forEach((field) => {
+        const input = dom.form.elements.namedItem(`color-${i}-${field.key}`);
+        values[field.key] = clamp(Number(input.value), field.min, field.max);
+      });
+      all.push(convertInputToRgb(state.model, values));
+    }
+
+    return all;
+  }
+
+  function finishRoundIfNeeded() {
+    state.roundsPlayed += 1;
+    const isInfinite = dom.infiniteRounds.checked;
+    const roundLimit = clamp(Number(dom.rounds.value) || 1, 1, 100);
+
+    if (!isInfinite && state.roundsPlayed >= roundLimit) {
+      dom.feedback.textContent += " | Game over: round limit reached. Click New target to restart.";
+      state.currentRound = 1;
+      state.roundsPlayed = 0;
+      return;
+    }
+
+    state.currentRound += 1;
+  }
+
+  dom.form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const player = parseInputs();
+    const result = modes[state.mode].evaluate(player);
+    dom.feedback.textContent = result.message;
+    finishRoundIfNeeded();
+  });
+
+  dom.nextRound.addEventListener("click", () => {
+    startRound(false);
+  });
+
+  dom.mode.addEventListener("change", () => {
+    startRound(true);
+  });
+
+  dom.model.addEventListener("change", () => {
+    renderInputs();
+  });
+
+  dom.harmonyType.addEventListener("change", () => {
+    if (state.mode === "harmony") startRound(false);
+  });
+
+  dom.alwaysVisible.addEventListener("change", () => {
+    updateVisibilitySettings();
+    setTargetVisibility();
+  });
+
+  dom.hideSeconds.addEventListener("change", () => {
+    setTargetVisibility();
+  });
+
+  dom.infiniteRounds.addEventListener("change", () => {
+    dom.rounds.disabled = dom.infiniteRounds.checked;
+  });
+
+  dom.rounds.disabled = dom.infiniteRounds.checked;
+  startRound(true);
+})();
