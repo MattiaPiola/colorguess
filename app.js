@@ -209,6 +209,7 @@
     hideSecondsLabel: document.getElementById("hideSecondsLabel"),
     targetWrap: document.getElementById("targetWrap"),
     targetSwatch: document.getElementById("targetSwatch"),
+    guessPreview: document.getElementById("guessPreview"),
     harmonyTargets: document.getElementById("harmonyTargets"),
     inputs: document.getElementById("inputs"),
     feedback: document.getElementById("feedback"),
@@ -245,26 +246,120 @@
     return ColorMath.rgbToCmyk(rgb);
   }
 
+  function buildSliderGradient(model, key, values) {
+    if (model === "rgb") {
+      const r = Math.round(values.r);
+      const g = Math.round(values.g);
+      const b = Math.round(values.b);
+      if (key === "r") return `linear-gradient(to right, rgb(0,${g},${b}), rgb(255,${g},${b}))`;
+      if (key === "g") return `linear-gradient(to right, rgb(${r},0,${b}), rgb(${r},255,${b}))`;
+      return `linear-gradient(to right, rgb(${r},${g},0), rgb(${r},${g},255))`;
+    }
+    if (model === "hsl") {
+      const h = Math.round(values.h);
+      const s = Math.round(values.s);
+      const l = Math.round(values.l);
+      if (key === "h") {
+        const stops = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360]
+          .map((deg) => `hsl(${deg},${s}%,${l}%)`)
+          .join(", ");
+        return `linear-gradient(to right, ${stops})`;
+      }
+      if (key === "s") return `linear-gradient(to right, hsl(${h},0%,${l}%), hsl(${h},100%,${l}%))`;
+      return `linear-gradient(to right, hsl(${h},${s}%,0%), hsl(${h},${s}%,50%), hsl(${h},${s}%,100%))`;
+    }
+    if (model === "cmyk") {
+      if (key === "c") return "linear-gradient(to right, white, cyan)";
+      if (key === "m") return "linear-gradient(to right, white, magenta)";
+      if (key === "y") return "linear-gradient(to right, white, yellow)";
+      return "linear-gradient(to right, white, black)";
+    }
+    return "linear-gradient(to right, rgba(255,255,255,0.05), rgba(255,255,255,0.15))";
+  }
+
+  function getGroupModelValues(groupEl, index) {
+    const fields = modelDefs[state.model];
+    const values = {};
+    fields.forEach((field) => {
+      const slider = groupEl.querySelector(`[name="color-${index}-${field.key}"]`);
+      values[field.key] = clamp(Number(slider.value), field.min, field.max);
+    });
+    return values;
+  }
+
+  function updateSliderGradients(groupEl, index) {
+    const values = getGroupModelValues(groupEl, index);
+    modelDefs[state.model].forEach((field) => {
+      const slider = groupEl.querySelector(`[name="color-${index}-${field.key}"]`);
+      if (slider) slider.style.background = buildSliderGradient(state.model, field.key, values);
+    });
+  }
+
+  function updateLivePreview(groupEl, index) {
+    const values = getGroupModelValues(groupEl, index);
+    const rgb = convertInputToRgb(state.model, values);
+    const css = ColorMath.rgbToCss(rgb);
+    const chip = groupEl.querySelector(".group-color-chip");
+    if (chip) chip.style.background = css;
+    if (state.mode === "guess") {
+      dom.guessPreview.style.background = css;
+    }
+  }
+
   function buildInputGroup(index, defaults) {
     const fields = modelDefs[state.model];
     const group = document.createElement("div");
-    group.className = "inputs-grid";
+    group.className = "input-group";
+
+    const header = document.createElement("div");
+    header.className = "group-header";
+    const chip = document.createElement("div");
+    chip.className = "group-color-chip";
+    const title = document.createElement("span");
+    title.className = "group-title";
+    title.textContent = state.mode === "harmony" ? `Color ${index + 1}` : "Your guess";
+    header.appendChild(chip);
+    header.appendChild(title);
+    group.appendChild(header);
+
+    const container = document.createElement("div");
+    container.className = "sliders-container";
 
     fields.forEach((field) => {
-      const label = document.createElement("label");
-      label.textContent = state.mode === "harmony" ? `Color ${index + 1} • ${field.label}` : field.label;
-      const input = document.createElement("input");
-      input.type = "number";
-      input.min = String(field.min);
-      input.max = String(field.max);
-      input.step = String(field.step);
-      input.name = `color-${index}-${field.key}`;
-      input.required = true;
-      input.value = String(clamp(defaults[field.key] ?? field.min, field.min, field.max));
-      label.appendChild(input);
-      group.appendChild(label);
+      const row = document.createElement("div");
+      row.className = "slider-row";
+
+      const lbl = document.createElement("span");
+      lbl.className = "slider-label";
+      lbl.textContent = field.label;
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.min = String(field.min);
+      slider.max = String(field.max);
+      slider.step = String(field.step);
+      slider.name = `color-${index}-${field.key}`;
+      slider.value = String(clamp(defaults[field.key] ?? field.min, field.min, field.max));
+
+      const valDisplay = document.createElement("span");
+      valDisplay.className = "slider-value";
+      valDisplay.textContent = slider.value;
+
+      slider.addEventListener("input", () => {
+        valDisplay.textContent = slider.value;
+        updateSliderGradients(group, index);
+        updateLivePreview(group, index);
+      });
+
+      row.appendChild(lbl);
+      row.appendChild(slider);
+      row.appendChild(valDisplay);
+      container.appendChild(row);
     });
 
+    group.appendChild(container);
+    updateSliderGradients(group, index);
+    updateLivePreview(group, index);
     return group;
   }
 
@@ -301,8 +396,10 @@
 
   function updateVisibilitySettings() {
     const isGuess = state.mode === "guess";
+    dom.harmonyTypeLabel.classList.toggle("hidden", isGuess);
     dom.visibilityLabel.classList.toggle("hidden", !isGuess);
     dom.hideSecondsLabel.classList.toggle("hidden", !isGuess || dom.alwaysVisible.checked);
+    dom.guessPreview.classList.toggle("hidden", !isGuess);
   }
 
   function setTargetVisibility() {
@@ -386,6 +483,7 @@
   });
 
   dom.model.addEventListener("change", () => {
+    state.model = dom.model.value;
     renderInputs();
   });
 

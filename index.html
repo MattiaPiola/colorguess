@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ColorGuess</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -11,7 +14,7 @@
       <h1>ColorGuess</h1>
       <p>Train your color intuition with guessing and harmony modes.</p>
 
-      <section class="panel">
+      <section class="panel settings-panel">
         <div class="settings-grid">
           <label>
             Mode
@@ -30,7 +33,7 @@
             </select>
           </label>
 
-          <label>
+          <label class="checkbox-label">
             <input id="infiniteRounds" type="checkbox" checked />
             Infinite rounds
           </label>
@@ -40,13 +43,13 @@
             <input id="rounds" type="number" value="10" min="1" max="100" />
           </label>
 
-          <label id="visibilityLabel">
+          <label id="visibilityLabel" class="checkbox-label">
             <input id="alwaysVisible" type="checkbox" checked />
             Target always visible
           </label>
 
           <label id="hideSecondsLabel">
-            Hide after seconds
+            Hide after (s)
             <input id="hideSeconds" type="number" value="3" min="1" max="15" />
           </label>
 
@@ -63,22 +66,27 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel game-panel">
         <div class="status-row">
           <strong id="roundStatus">Round 1</strong>
           <button id="nextRound" type="button">New target</button>
         </div>
 
-        <div class="target-wrap" id="targetWrap">
-          <div class="target-swatch" id="targetSwatch"></div>
-          <span class="target-label" id="targetLabel">Target</span>
+        <div class="swatches-row">
+          <div class="target-wrap" id="targetWrap">
+            <div class="target-swatch" id="targetSwatch"></div>
+            <span class="swatch-label">Target</span>
+          </div>
+          <div class="guess-preview" id="guessPreview">
+            <span class="swatch-label">Your guess</span>
+          </div>
         </div>
 
         <div id="harmonyTargets" class="harmony-targets"></div>
 
         <form id="guessForm" class="guess-form">
           <div id="inputs"></div>
-          <button type="submit">Submit</button>
+          <button type="submit">Submit guess</button>
         </form>
 
         <div class="feedback" id="feedback">Pick values and submit to get feedback.</div>
