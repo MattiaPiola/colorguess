@@ -367,31 +367,17 @@
     dom.inputs.innerHTML = "";
 
     if (state.mode === "guess") {
-      dom.inputs.appendChild(buildInputGroup(0, rgbToModel(state.model, state.target)));
+      dom.inputs.appendChild(buildInputGroup(0, rgbToModel(state.model, ColorMath.randomRgb())));
       return;
     }
 
-    state.harmony.forEach((harmonyRgb, idx) => {
-      dom.inputs.appendChild(buildInputGroup(idx, rgbToModel(state.model, harmonyRgb)));
+    state.harmony.forEach((_harmonyRgb, idx) => {
+      dom.inputs.appendChild(buildInputGroup(idx, rgbToModel(state.model, ColorMath.randomRgb())));
     });
   }
 
   function renderHarmonyTargets() {
     dom.harmonyTargets.innerHTML = "";
-    if (state.mode !== "harmony") return;
-
-    state.harmony.forEach((rgb, idx) => {
-      const row = document.createElement("div");
-      row.className = "harmony-item";
-      const chip = document.createElement("span");
-      chip.className = "harmony-chip";
-      chip.style.background = ColorMath.rgbToCss(rgb);
-      const txt = document.createElement("span");
-      txt.textContent = `Target harmony ${idx + 1}`;
-      row.appendChild(chip);
-      row.appendChild(txt);
-      dom.harmonyTargets.appendChild(row);
-    });
   }
 
   function updateVisibilitySettings() {
